@@ -1,8 +1,11 @@
 import GameResult from '@/components/GameResult'
-import { generateGameData, generateScores } from '@/utils/fakeData'
-import { GameStruct, ScoreStruct } from '@/utils/type.dt'
+import { getGame, getScores } from '@/services/blockchain'
+import { globalActions } from '@/store/globalSlices'
+import { GameStruct, RootState, ScoreStruct } from '@/utils/type.dt'
 import { GetServerSidePropsContext, NextPage } from 'next'
 import Head from 'next/head'
+import { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { toast } from 'react-toastify'
 import { useAccount } from 'wagmi'
 
@@ -13,6 +16,14 @@ interface PageProps {
 
 const Page: NextPage<PageProps> = ({ gameData, scoresData }) => {
   const { address } = useAccount()
+  const dispatch = useDispatch();
+  const { setGame, setScores } = globalActions
+  const { game, scores } = useSelector((states: RootState) => states.globalStates)
+
+  useEffect(() => {
+    dispatch(setGame(gameData))
+    dispatch(setScores(scoresData))
+  }, [dispatch, setGame, gameData, setScores, scoresData])
 
   const handlePayout = async () => {
     if (!address) return toast.warning('Connect wallet first!')
@@ -36,7 +47,7 @@ const Page: NextPage<PageProps> = ({ gameData, scoresData }) => {
         <title>Play2Earn | Game Result</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      {gameData && <GameResult game={gameData} scores={scoresData} />}
+      {game && <GameResult game={game} scores={scores} />}
 
       <div className="flex justify-center space-x-2">
         <button
@@ -56,8 +67,8 @@ export default Page
 
 export const getServerSideProps = async (context: GetServerSidePropsContext) => {
   const { id } = context.query
-  const gameData: GameStruct = generateGameData(Number(id))[0]
-  const scoresData: ScoreStruct[] = generateScores(5)
+  const gameData: GameStruct = await getGame(Number(id))
+  const scoresData: ScoreStruct[] = await getScores(Number(id))
 
   return {
     props: {
