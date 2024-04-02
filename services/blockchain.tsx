@@ -12,7 +12,7 @@ let ethereum: any
 let tx: any
 
 if(typeof window !== 'undefined') ethereum = window.ethereum
-const { setGames, setInvitations } = globalActions
+const { setGames, setInvitations, setScores } = globalActions
 
 const getEthereumContracts = async () => {
     const accounts = await ethereum?.request?.({ method: 'eth_accounts' })
@@ -31,11 +31,19 @@ const getEthereumContracts = async () => {
     }
   }
 
-const getGames = async (): Promise<GameStruct[]> => {
-    const contract = await getEthereumContracts()
-    const games = await contract.getGames();
-    return structuredGames(games)
-}
+  const getGames = async (): Promise<GameStruct[]> => {
+    try {
+        const contract = await getEthereumContracts();
+        console.log("Contract address:", contract.address); // Log contract address
+        const games = await contract.getGames();
+        console.log("Fetched games:", games); // Log fetched games
+        return structuredGames(games);
+    } catch (error) {
+        console.error("Error fetching games:", error); // Log any errors
+        throw error; // Rethrow or handle error appropriately
+    }
+};
+
 
 const getMyGames = async (): Promise<GameStruct[]> => {
     const contract = await getEthereumContracts()
@@ -172,6 +180,29 @@ const respondToInvite = async (accepted: boolean, invitation: InvitationStruct, 
     }
 }
 
+const playGame = async (gameId: number, index: number, score: number): Promise<void> => {
+    if(!ethereum) {
+        reportError('Please install a browswer proivder')
+        return Promise.reject(new Error('Browser provider not installed'))
+
+
+
+        try {
+            const contract = await getEthereumContracts()
+            tx = await contract.invitePlayer(gameId, index, score)
+            await tx.wait()
+
+            const scores: ScoreStruct[] = await getScores(gameId);
+            store.dispatch(setScores(scores))
+  
+            return Promise.resolve(tx)  
+        } catch (error) {
+            reportError(error);
+            return Promise.reject(error);    
+        }
+    }
+}
+
 const structuredGames = (games: GameStruct[]): GameStruct[] => 
     games.map((game) => ({
         id: Number(game.id),
@@ -215,4 +246,4 @@ const structuredGames = (games: GameStruct[]): GameStruct[] =>
         }))
         .sort((a, b) => a.score - b.score)
 
-export { getGames, getMyGames, getGame, getInvitations, getScores, createGame, deleteGame, invitePlayer, getMyInvitations, respondToInvite }
+export { getGames, getMyGames, getGame, getInvitations, getScores, createGame, deleteGame, invitePlayer, getMyInvitations, respondToInvite, playGame }
